@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import CoreLocation
 
 class MainViewController: UIViewController {
     
@@ -71,7 +72,17 @@ class MainViewController: UIViewController {
         return textField
     }()
     
+    private lazy var geoLocationButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.tintColor = UIColor(named: "weatherColor")
+        button.setImage(UIImage(systemName: "location.circle"), for: .normal)
+        button.addTarget(self, action: #selector(geoLocationButtonTapped), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
     var weatherManager = WeatherManager()
+    let locationManager = CLLocationManager()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -80,7 +91,7 @@ class MainViewController: UIViewController {
         setConstraints()
         setDelegates()
         addTaps()
-
+        setGeolocation()
     }
     
     private func setupViews() {
@@ -92,11 +103,18 @@ class MainViewController: UIViewController {
         view.addSubview(cityLabel)
         view.addSubview(cityTextField)
         view.addSubview(searchButton)
+        view.addSubview(geoLocationButton)
     }
     
     private func setDelegates() {
         cityTextField.delegate = self
         weatherManager.delegate = self
+        locationManager.delegate = self
+    }
+    
+    private func setGeolocation() {
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.requestLocation()
     }
     
     private func addTaps() {
@@ -111,6 +129,10 @@ class MainViewController: UIViewController {
     @objc private func searchButtonTapped() {
         cityTextField.endEditing(true)
         print(cityTextField.text!)
+    }
+    
+    @objc private func geoLocationButtonTapped() {
+        locationManager.requestLocation()
     }
 }
 
@@ -160,6 +182,26 @@ extension MainViewController: WeatherManagerDelegate {
     }
 }
 
+//MARK: - CLLocationManagerDelegate
+
+extension MainViewController: CLLocationManagerDelegate {
+    
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let location = locations.last {
+            locationManager.stopUpdatingLocation()
+            let lat = location.coordinate.latitude
+            let lon = location.coordinate.longitude
+            weatherManager.fetchWeather(latitude: lat, longitude: lon)
+
+        }
+        
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print(error)
+    }
+}
+
 //MARK: - SetConstraints
 
 extension MainViewController {
@@ -175,7 +217,7 @@ extension MainViewController {
         
         NSLayoutConstraint.activate([
             cityTextField.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 3),
-            cityTextField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 50),
+            cityTextField.leadingAnchor.constraint(equalTo: geoLocationButton.trailingAnchor, constant: 10),
             cityTextField.trailingAnchor.constraint(equalTo: searchButton.leadingAnchor, constant: -10),
             cityTextField.heightAnchor.constraint(equalToConstant: 38)
         ])
@@ -185,6 +227,13 @@ extension MainViewController {
             searchButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -15),
             searchButton.heightAnchor.constraint(equalToConstant: 38),
             searchButton.widthAnchor.constraint(equalToConstant: 38)
+        ])
+        
+        NSLayoutConstraint.activate([
+            geoLocationButton.heightAnchor.constraint(equalToConstant: 38),
+            geoLocationButton.widthAnchor.constraint(equalToConstant: 38),
+            geoLocationButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 3),
+            geoLocationButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 15)
         ])
         
         NSLayoutConstraint.activate([
